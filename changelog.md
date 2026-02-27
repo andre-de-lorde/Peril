@@ -27,11 +27,6 @@
 - Fixed null pointer error in 0.3.1
   - thanks to sparranova for finding this
 
-## 0.3.2
-- Made `getCargoCapacity` account for stat modifications
-  - Thanks to ruddygreat for helping me in #advanced-modmaking in the discord this time and multiple others before
-- Added GPL-3 license
-
 ## 0.3.3
 - Nerfed fragment production speed to only go up to 2x the maximum that cargo capacity gives you
   - (frigates shouldn't be pumping out as much as a supercap after a good meal, should they?)
@@ -40,6 +35,10 @@
 - Fixed defabrication AI not going around shields
   - (good lord that one sucked, i don't even wanna say how many times i messed up)
 
+## 0.3.2
+- Made `getCargoCapacity` account for stat modifications
+  - Thanks to ruddygreat for helping me in #advanced-modmaking in the discord this time and multiple others before
+- Added GPL-3 license
 
 ## 0.3.1
 - started keeping track of my changes
