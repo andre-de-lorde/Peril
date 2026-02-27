@@ -1,0 +1,37 @@
+{
+    "displayName": "Type 102",
+    "fluxCapacitors": 10,
+    "fluxVents": 10,
+    "goalVariant": true,
+    "hullId": "skirmish_unit",
+    "hullMods": [
+        "fragment_swarm",
+        "magazines",
+        "missleracks",
+        "safetyoverrides",
+        "extendedshieldemitter"
+    ],
+    "permaMods": [],
+    "sMods": [],
+    "variantId": "skirmish_unit_Type102",
+    "weaponGroups": [
+        {
+            "autofire": true,
+            "mode": "LINKED",
+            "weapons": {"WS 003": "voidblaster"}
+        },
+        {
+            "autofire": true,
+            "mode": "LINKED",
+            "weapons": {"WS 000": "devouring_swarm"}
+        },
+        {
+            "autofire": true,
+            "mode": "LINKED",
+            "weapons": {
+                "WS 001": "voltaic_discharge",
+                "WS 002": "voltaic_discharge"
+            }
+        }
+    ]
+}

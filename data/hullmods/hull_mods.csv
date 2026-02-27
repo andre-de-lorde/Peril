@@ -1,0 +1,14 @@
+name,id,tier,rarity,tech/manufacturer,tags,uiTags,base value,unlocked,hidden,hiddenEverywhere,cost_frigate,cost_dest,cost_cruiser,cost_capital,script,desc,short,sModDesc,sprite
+# Add your hullmods here. One left commented out for reference.
+# See: https://starsector.fandom.com/wiki/Hull_mods.csv
+# Accelerated Shields,advancedshieldemitter,0,,,"defensive, shields, merc, standard",Shields,3000,,,,3,6,9,15,data.hullmods.AcceleratedShieldEmitter,Increases the turn rate of the ship's shields by %s and the rate at which the shields are raised by %s.,Increases shield turn rate and extension speed.,Increases the shield's turn rate and raise rate by an additional %s.,graphics/hullmods/accelerated_shields.png
+Protective Swarm,adel_peril_protective_swarm,0,,Threat,"defensive, shields, standard, no_built_in, no_drop",Shields,-8675309,true,,,0,0,0,0,adel.Peril.hullmods.ProtectiveSwarm,Articulate Brown Cromulent Drinking Elephantine Foxes,abcdef,,graphics/hullmods/protective_swarm.png
+Fragment Swarm,fragment_swarm,,,,"codex_unlockable, fragment, no_drop_salvage","Weapons, Special",30000,,,,6,12,18,30,adel.Peril.combat.SmartFragmentSwarmHullMod,"A swarm of Threat fragments roils around the ship, providing a regenerating supply of fragments for fragment-based weapons.
+
+As cargo size rises, more supplies are made available to the fragments, causing replacements to be launched proportionally faster.
+
+This hullmod is required for fragment weapons to function, if the hullmod is not present or there are not enough fragments in the swarm, fragment weapons will be disabled.
+
+Only made operational shortly before combat. If built-in, acts as an exceptional salvage gantry if one is willing to brave the risks of keeping the machinery running.",A swarm of Threat fragments roils around the ship.,Reduces maximum combat readiness by %s and increases the maintenance cost by %s. Acts as a Salvage Gantry with 4x efficiency.,graphics/hullmods/fragment_swarm.png
+
+Threat Hull,threat_hullmod,,,,"codex_require_related, threat",,,,TRUE,,0,0,0,0,adel.Peril.hullmods.BetterThreatHullmod,Hidden hullmod for managing the special properties of Threat ships. Description created in script.,,,graphics/hullmods/the_threat.png
