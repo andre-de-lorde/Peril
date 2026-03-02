@@ -2,6 +2,8 @@
 
 ## 0.4.2
 - Improved defabrication swarm autofire AI to stop ships from sending like a trillion fragments after a single molecule of a dead hull
+- Added graphics for the planned defabrication unit and the in progress locust cannon made by kirbo.1 in the USC
+  - Thanks, by the way!
 
 ## 0.4.1
 - Added VersionChecker support!
