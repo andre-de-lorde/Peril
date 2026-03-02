@@ -1,5 +1,6 @@
 package adel.Peril.scripts.ai.autofire;
 
+import adel.Peril.combat.SmartFragmentSwarmHullMod;
 import adel.Peril.scripts.ai.DefabricationMissileAI;
 import adel.Peril.weapons.adelDevouringSwarmMissileEffect;
 import com.fs.starfarer.api.Global;
@@ -13,6 +14,7 @@ import org.lazywizard.lazylib.combat.AIUtils;
 import org.lazywizard.lazylib.combat.CombatUtils;
 import org.lwjgl.util.vector.Vector2f;
 
+import java.awt.*;
 import java.util.List;
 import java.util.Objects;
 
@@ -35,23 +37,17 @@ public class DefabricationMissileAutofireAI implements AutofireAIPlugin {
 
         WeightedRandomPicker<ShipAPI> meals = DefabricationMissileAI.findNextMeal(weapon.getShip(),weapon.getLocation());
         int weight = 0;
+        final float size = SmartFragmentSwarmHullMod.calculateSize(weapon.getShip());
 
         while (!meals.isEmpty()) {
             ShipAPI ship = meals.pick();
-            final ShieldAPI shield = ship.getShield();
-            if ((shield == null) || !shield.isWithinArc(weapon.getLocation())) {
-                break;
-            } else {
-                final float blindspot = 360 - shield.getActiveArc();
-                weight += (ship.getMass() / 1000);
-                if (weight < 1) weight = 1;
-                weight *= (blindspot/360);
-                weight *= (ship.getHardFluxLevel());
-                int st = getSwarmsTargetting(ship);
-                if (st > 0) weight /= st;
-                if (weight < 1) meals.remove(ship);
-                else break;
+            if (size > 1) {
+                if (meals.getWeight(ship)/size < 1) {
+                    meals.remove(ship);
+                    continue;
+                }
             }
+            break;
         }
         if (meals.isEmpty()) {
             shouldFire = false;
@@ -63,7 +59,8 @@ public class DefabricationMissileAutofireAI implements AutofireAIPlugin {
     }
 
     public static int getSwarmsTargetting(ShipAPI ship) {
-        return DefabricationMissileAI.getSwarmsEating(ship);
+        final int amount = DefabricationMissileAI.getSwarmsEating(ship);
+        return amount;
     }
 
 

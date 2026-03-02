@@ -26,36 +26,107 @@ import java.util.List;
 import java.util.Map;
 
 import static java.lang.Math.log;
+import static java.lang.Math.random;
 
 public class SmartFragmentSwarmHullMod extends FragmentSwarmHullmod {
 
-    IntervalUtil theCoolerTransferUtil = new IntervalUtil(0.0f,2.0f);
-    private static final double LOGARITHMIC_CARGO_SCALING_BASE = 1.0076; // works out to give the fabricator 10 fragments per second at 2000 cargo cap
-    final float CR_PERCENT_BOOST = 0.0025f;
-    final static float MASS_TO_FRAGPOINT_RATIO = 1f/10f;
+    private final static String FRAGMENT_COORDINATOR_ID = "fragment_coordinator";
+    private final static String SECONDARY_FABRICATOR_ID = "secondary_fabricator";
+    private final static String              CRPOINT_ID = "adel_peril_crpoints";
+
+    private static final double LOGARITHMIC_CARGO_SCALING_BASE = 2.13; // works out to give the fabricator 10 fragments per second at 2000 cargo cap
+
+    private static final int MAX_FRAGPOINT_BONUS = 2;
+    private static final float MAX_SEARCHRANGE_FRAGTRANSFER = 500; // i got no clue how big this is but whatever
+
+    private static final float CR_PERCENT_BOOST = 0.0025f;
+    private static final float MASS_TO_FRAGPOINT_RATIO = 1f/10f;
+
+    private final IntervalUtil theCoolerTransferUtil = new IntervalUtil(0.0f,2.0f);
+
 
     public static float getCargoCapacity(ShipAPI ship) {
         final StatBonus cargomod = ship.getMutableStats().getCargoMod();
         return (ship.getHullSpec().getCargo() + cargomod.getMult()) + cargomod.getFlatBonus();
     }
 
-    public static float calculateFragmentsPerSecond(ShipAPI ship) {
+    public static final boolean hasFragmentCoordinator(ShipAPI ship) {
+        return ship.getVariant().hasHullMod(FRAGMENT_COORDINATOR_ID);
+    }
+
+    public static final boolean hasSmoddedFragmentCoordinator(ShipAPI ship) {
+        return ship.getVariant().getSMods().contains(FRAGMENT_COORDINATOR_ID);
+    }
+
+    public static final boolean hasSecondaryFabricator(ShipAPI ship) {
+        return ship.getVariant().hasHullMod(SECONDARY_FABRICATOR_ID);
+    }
+
+    public static final boolean hasSmoddedSecondaryFabricator(ShipAPI ship) {
+        return ship.getVariant().getSMods().contains(SECONDARY_FABRICATOR_ID);
+    }
+
+    public static final float getProductionSpeedBonus(ShipAPI ship) {
+        float speedmod = 1f;
+        if (hasSecondaryFabricator(ship)) speedmod += 0.6f;
+        if (hasSmoddedSecondaryFabricator(ship)) speedmod += 0.4f;
+        return speedmod;
+    }
+
+    public static final float getCapacityBonus(ShipAPI ship) {
+        float capmod = 1f;
+        if (hasFragmentCoordinator(ship)) capmod += 0.6f;
+        if (hasSmoddedFragmentCoordinator(ship)) capmod += 0.4f;
+        return capmod;
+    }
+
+    public static int getFragmentCapacity(ShipAPI ship) {
+        final float cargo = getCargoCapacity(ship);
+        final float bonus = getCapacityBonus(ship);
+
+        //final double logDivisor = Math.log(LOGARITHMIC_CARGO_SCALING_BASE);
+
+        final float speed = getFragmentProductionSpeed(ship, false);
+
+        return (int) (speed * 10 * bonus);
+    }
+
+    public static float getFragmentProductionSpeed(ShipAPI ship, boolean withfragpoints) {
         final float cargoCapacity = getCargoCapacity(ship);
-        final float effectiveCargoCapacity = cargoCapacity - (cargoCapacity - getFragmentPoints(ship));
 
-        final double elog = Math.log(effectiveCargoCapacity);
-        final double clog = Math.log(cargoCapacity);
-        final double logbase = Math.log(LOGARITHMIC_CARGO_SCALING_BASE);
-        final double cb = clog / logbase;
-        final double eb = elog / logbase;
-
-        if (eb > (2 * cb)) {
-            return (float) (2 * cb / 100);
+        final float prodBonus = getProductionSpeedBonus(ship);
+        if (withfragpoints) {
+            final float effectiveCargoCapacity = cargoCapacity - (cargoCapacity - getFragmentPoints(ship));
+            return calculateFragmentProductionSpeed(cargoCapacity, effectiveCargoCapacity, prodBonus);
         } else {
-            return (float) (eb / 100);
+            return calculateFragmentProductionSpeed(cargoCapacity, cargoCapacity, prodBonus);
         }
-        //uses change of base formula
-        //in effect, this is log_1.0076(cargocap)
+    }
+
+    private static float calculateFragmentProductionSpeed(float baseCargo, float effectiveCargo, float bonusSpeed) {
+
+        final double baseLog = Math.log(baseCargo);
+        final double logDivisor = Math.log(LOGARITHMIC_CARGO_SCALING_BASE);
+
+
+        // log divisor is used for the change of base fomula applied here
+
+        final double baseSpeed = baseLog / logDivisor;
+
+
+        if (effectiveCargo == baseCargo) return (float) (baseSpeed * bonusSpeed);
+
+        final double effectiveLog = Math.log(effectiveCargo);
+        final double effectiveSpeed = effectiveLog / logDivisor;
+
+        if (effectiveSpeed > (MAX_FRAGPOINT_BONUS * baseSpeed)) {
+            final double speed = MAX_FRAGPOINT_BONUS * baseSpeed;
+            return (float) (speed * bonusSpeed);
+
+        } else {
+            final double speed = effectiveSpeed;
+            return (float) (speed * bonusSpeed);
+        }
     }
 
     public static void incFragmentPoints(ShipAPI ship, float mass) {
@@ -81,18 +152,18 @@ public class SmartFragmentSwarmHullMod extends FragmentSwarmHullmod {
     }
 
     public static int getCRPoints(ShipAPI ship) {
-        if (ship.getCustomData().get("adel_peril_crpoints") == null) {
+        if (ship.getCustomData().get(CRPOINT_ID) == null) {
             setCRPoints(ship,0);
         }
-        return (int) ship.getCustomData().get("adel_peril_crpoints");
+        return (int) ship.getCustomData().get(CRPOINT_ID);
     }
 
     public static void setCRPoints(ShipAPI ship, int p) {
-        ship.setCustomData("adel_peril_crpoints", p);
+        ship.setCustomData(CRPOINT_ID, p);
     }
 
     public static void incCRPoints(ShipAPI ship) {
-        setCRPoints(ship, getCRPoints(ship)+1);
+        addCRPoints(ship, 1);
     }
 
     public static void addCRPoints(ShipAPI ship, int amnt) {
@@ -115,21 +186,7 @@ public class SmartFragmentSwarmHullMod extends FragmentSwarmHullmod {
                 Global.getCombatEngine() != null && Global.getCombatEngine().getPlayerShip() == ship;
 
         RoilingSwarmParams params = swarm.getParams();
-        //params.baseMembersToMaintain = (int) ship.getMutableStats().getDynamic().getValue(
-                //Stats.FRAGMENT_SWARM_SIZE_MOD, getBaseSwarmSize(ship.getHullSize()));
-        //params.memberRespawnRate = getBaseSwarmRespawnRateMult(ship.getHullSize()) *
-               // ship.getMutableStats().getDynamic().getValue(Stats.FRAGMENT_SWARM_RESPAWN_RATE_MULT);
-
-//		if (ship.getHullSpec().getHullId().equals(ThreatHullmod.HIVE_UNIT)) {
-//			params.baseMembersToMaintain = SwarmLauncherEffect.FRAGMENT_NUM.get(SwarmLauncherEffect.ATTACK_SWARM_WING);
-//			params.baseMembersToMaintain *= 8;
-//			params.memberRespawnRate = 15 * ship.getMutableStats().getDynamic().getValue(Stats.FRAGMENT_SWARM_RESPAWN_RATE_MULT);
-//		}
-
-        params.maxNumMembersToAlwaysRemoveAbove = (int) (params.baseMembersToMaintain * 1.5f);
-        //params.initialMembers = params.baseMembersToMaintain;
-
-        params.memberRespawnRate = calculateFragmentsPerSecond(ship);
+        params.memberRespawnRate = getFragmentProductionSpeed(ship, true);
 
         if (playerShip) {
             int active = swarm.getNumActiveMembers();
@@ -159,7 +216,7 @@ public class SmartFragmentSwarmHullMod extends FragmentSwarmHullmod {
     }
 
     public void runTransferCheck(ShipAPI donor) {
-        WeightedRandomPicker<ShipAPI> buddies = findBuddies(donor, 500);
+        WeightedRandomPicker<ShipAPI> buddies = findBuddies(donor, MAX_SEARCHRANGE_FRAGTRANSFER);
 
         if (buddies.isEmpty()) return;
         else {
@@ -284,10 +341,6 @@ public class SmartFragmentSwarmHullMod extends FragmentSwarmHullmod {
             params.spawnOffsetMult = 0.33f;
             params.spawnOffsetMultForInitialSpawn = 1f;
 
-            params.baseMembersToMaintain = getBaseSwarmSize(ship.getHullSize());
-            params.memberRespawnRate = getBaseSwarmRespawnRateMult(ship.getHullSize());
-            params.maxNumMembersToAlwaysRemoveAbove = params.baseMembersToMaintain * 2;
-
             //params.offsetRerollFractionOnMemberRespawn = 0.05f;
         }
 
@@ -303,9 +356,15 @@ public class SmartFragmentSwarmHullMod extends FragmentSwarmHullmod {
         }
 
         if (!ship.isFighter()) {
-            params.memberRespawnRate = SmartFragmentSwarmHullMod.calculateFragmentsPerSecond(ship);
-            params.baseMembersToMaintain = (int) (params.memberRespawnRate * 100);
-            params.initialMembers = (int) (params.memberRespawnRate * 10);
+            params.memberRespawnRate = getFragmentProductionSpeed(ship,true);
+            params.baseMembersToMaintain = getFragmentCapacity(ship);
+            params.maxNumMembersToAlwaysRemoveAbove = params.baseMembersToMaintain * 2;
+
+            if ((10 * params.memberRespawnRate) > params.baseMembersToMaintain) {
+                params.initialMembers = params.baseMembersToMaintain;
+            } else {
+                params.initialMembers = (int) (10 * params.memberRespawnRate);
+            }
         }
 
         /**if (!ship.getHullSpec().getHullId().equals("fabricator_unit")) {
@@ -641,7 +700,7 @@ public class SmartFragmentSwarmHullMod extends FragmentSwarmHullmod {
             RoilingSwarmEffect bswarm = RoilingSwarmEffect.getSwarmFor(buddy);
             if (bswarm == null) continue;
 
-            if (!bswarm.getParams().memberExchangeClass.equals(RoilingSwarmEffect.getSwarmFor(source).getParams().memberExchangeClass)) continue;
+            if (bswarm.getParams().memberExchangeClass == null || (!bswarm.getParams().memberExchangeClass.equals(RoilingSwarmEffect.getSwarmFor(source).getParams().memberExchangeClass))) continue;
 
             final int sizediff = calculateSizeDifference(buddy, source);
             final float generosity = (float) (getCargoCapacity(source)-getFragmentPoints(buddy)) / getCargoCapacity(source);
@@ -664,7 +723,14 @@ public class SmartFragmentSwarmHullMod extends FragmentSwarmHullmod {
         return shipPicker;
     }
 
-    private int calculateSizeDifference(ShipAPI ship1, ShipAPI ship2) {
+    public static int calculateSizeDifference(ShipAPI ship1, ShipAPI ship2) {
+        final int size1 = calculateSize(ship1);
+        final int size2 = calculateSize(ship2);
+
+        return size1 - size2;
+    }
+
+    public static int calculateSize(ShipAPI ship) {
         Map<HullSize, Integer> sizeMap = new HashMap<>();
         sizeMap.put(HullSize.CAPITAL_SHIP, 4);
         sizeMap.put(HullSize.CRUISER, 3);
@@ -672,9 +738,6 @@ public class SmartFragmentSwarmHullMod extends FragmentSwarmHullmod {
         sizeMap.put(HullSize.FRIGATE, 1);
         sizeMap.put(HullSize.FIGHTER, 0);
 
-        final int size1 = sizeMap.get(ship1.getHullSize());
-        final int size2 = sizeMap.get(ship2.getHullSize());
-
-        return size1 - size2;
+        return sizeMap.get(ship.getHullSize());
     }
 }

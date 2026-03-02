@@ -2,38 +2,56 @@ package adel.Peril.weapons;
 
 import adel.Peril.combat.SmartFragmentSwarmHullMod;
 import adel.Peril.scripts.ai.DefabricationMissileAI;
-import com.fs.starfarer.api.EveryFrameScript;
 import com.fs.starfarer.api.Global;
 import com.fs.starfarer.api.combat.*;
 import com.fs.starfarer.api.combat.listeners.ApplyDamageResultAPI;
 import com.fs.starfarer.api.impl.combat.DisintegratorEffect;
+import com.fs.starfarer.api.impl.combat.threat.DevouringSwarmMissileEffect;
 import com.fs.starfarer.api.impl.combat.threat.RoilingSwarmEffect;
 import com.fs.starfarer.api.util.Misc;
 import org.lwjgl.util.vector.Vector2f;
-import com.fs.starfarer.api.impl.combat.threat.DevouringSwarmMissileEffect;
 
 import java.awt.*;
-import java.util.Random;
 
-import static adel.Peril.scripts.ai.DefabricationMissileAI.decSwarmsEating;
+public class adelEvilAssLocustMissileEffect extends DevouringSwarmMissileEffect {
 
-public class adelDevouringSwarmMissileEffect extends DevouringSwarmMissileEffect {
-
-    private boolean dead = false;
+    private static final float CR_PENALTY = 0.1f; // percentage
 
     @Override
-    protected void swarmAdvance(float amount, MissileAPI missile, RoilingSwarmEffect swarm) {
-        super.swarmAdvance(amount, missile, swarm);
-        if (missile.isFading() || missile.isFizzling() || missile.getHitpoints() <= 0) {
-            if (missile.getAI() instanceof DefabricationMissileAI) {
-                DefabricationMissileAI dai = (DefabricationMissileAI) missile.getAI();
-                if (dai.getTarget() != null) {
-                    decSwarmsEating(dai.getTarget());
-                }
-                dead = true;
-            }
-        };
+    public void advance(float amount, CombatEngineAPI engine, WeaponAPI weapon) {
+        super.advance(amount, engine, weapon);
+
     }
+
+    protected void configureMissileSwarmParams(RoilingSwarmEffect.RoilingSwarmParams params) {
+//		params.flashFringeColor = new Color(183,65,13,255);
+//		params.flashCoreColor = Color.white;
+//		params.flashRadius = 40f;
+//		params.flashCoreRadiusMult = 0.75f;
+
+        params.tags.add(DISMANTLING_SWARM);
+
+//		params.flashFringeColor = new Color(183,65,13,80);
+//		params.flashCoreColor = new Color(183,65,13,127);
+        params.flashFringeColor = new Color(64,41,0,50);
+        params.flashCoreColor = new Color(128,83,0,127);
+        //params.flashCoreColor = new Color(50,165,50,127);
+
+//		params.flashFringeColor = new Color(100,165,100,127);
+//		params.flashCoreColor = Color.white;
+
+
+        //params.flashCoreColor = new Color(183,65,13,127);
+        params.flashCoreRadiusMult = 0f;
+        params.renderFlashOnSameLayer = true;
+        params.flashRadius = 40f;
+        params.preFlashDelay = 0.5f * (float) Math.random();
+
+        params.flashFrequency = 40f;
+        params.flashProbability = 1f;
+    }
+
+
 
     @Override
     public void onHit(DamagingProjectileAPI projectile, CombatEntityAPI target, Vector2f point, boolean shieldHit,
@@ -48,8 +66,6 @@ public class adelDevouringSwarmMissileEffect extends DevouringSwarmMissileEffect
 
         Vector2f offset = Vector2f.sub(point, target.getLocation(), new Vector2f());
         offset = Misc.rotateAroundOrigin(offset, -target.getFacing());
-
-        DefabricationMissileAI.incSwarmsEating((ShipAPI) target);
 
         DisintegratorEffect effect = new DisintegratorEffect(projectile, (ShipAPI) target, offset) {
             protected float getTotalDamage() {
@@ -69,27 +85,21 @@ public class adelDevouringSwarmMissileEffect extends DevouringSwarmMissileEffect
             }
             private boolean gaveFrags = false;
             private double massStolen = 0;
-            private boolean didspawnswarm = false;
 
             @Override
             public void advance(float amount) {
                 super.advance(amount);
                 if (!gaveFrags && (this.isExpired() || target.getCollisionClass() == CollisionClass.NONE)) {
                     if (sourceSwarm != null) {
+                        final Vector2f loc = target.getLocation();
                         SmartFragmentSwarmHullMod.incFragmentPoints(source, (float) massStolen);
-                        RoilingSwarmEffect tempswarm;
-                        if (RoilingSwarmEffect.getSwarmFor(target) == null) {
-                            tempswarm = new RoilingSwarmEffect(target);
-                            didspawnswarm = true;
-                        } else {
-                            tempswarm = RoilingSwarmEffect.getSwarmFor(target);
+                        for (int i = 0; i < getNumFragmentsToFire(); i++) {
+                            RoilingSwarmEffect.SwarmMember p = sourceSwarm.addMember();
+                            p.loc.set(loc);
+                            p.fader.setDurationIn(0.3f);
                         }
-                        tempswarm.addMembers(getNumFragmentsToFire());
-                        SmartFragmentSwarmHullMod.transferAllFragments(tempswarm, sourceSwarm);
-                        if (didspawnswarm) tempswarm.setForceDespawn(true);
                     }
                     this.cleanup();
-                    decSwarmsEating(target);
                     gaveFrags = true;
                 }
             }
@@ -109,26 +119,9 @@ public class adelDevouringSwarmMissileEffect extends DevouringSwarmMissileEffect
 
                 if (!(hullDamage > 0 || armorDamage > 0)) return;
 
-                if (target.isHulk()) {
-                    if ((float) Math.random() < 0.33f) return;
-                    if ( (Math.random() * target.getMass()) < 20000 ) {
-                        engine.applyDamage(target, point, 300f, DamageType.FRAGMENTATION, 0f, false, false, source);
-                        //engine.spawnExplosion(point,target.getVelocity(),new Color(55,0,0,20),2f, 0.3f);
-                        float cr = source.getCurrentCR();
-                        final float PERCENT_BOOST = 0.0025f;
-                        cr += (PERCENT_BOOST / 100);
-                        if (cr > 1) cr = 1;
-                        adel.Peril.combat.SmartFragmentSwarmHullMod.incCRPoints(source);
+                if ((float) Math.random() < 0.33f) return;
 
-                        source.setCurrentCR(cr);
-                    }
-                } else {
-                    if ((float) Math.random() < 0.33f) return;
-                }/*
-                RoilingSwarmEffect.SwarmMember p = sourceSwarm.addMember();
-                p.loc.set(loc);
-                p.fader.setDurationIn(0.3f);*/
-                massStolen += target.getMass();
+                target.setCurrentCR(ship.getCurrentCR()-(CR_PENALTY/100));
             }
         };
         CombatEntityAPI e = engine.addLayeredRenderingPlugin(effect);

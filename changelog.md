@@ -1,5 +1,8 @@
 # 0.4
 
+## 0.4.2
+- Improved defabrication swarm autofire AI to stop ships from sending like a trillion fragments after a single molecule of a dead hull
+
 ## 0.4.1
 - Added VersionChecker support!
 - Set range of defab swarms to like a billion as a stopgap for them despawning past max range & overly aggressive fabricators
